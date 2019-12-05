@@ -13,7 +13,7 @@ interface Output {
   value: number;
 }
 
-interface ProgramOutput {
+interface Result {
   memory: Memory;
   output: Output[];
 }
@@ -43,6 +43,13 @@ export const readOpcode = (
 } => {
   const digits = splitIntoDigits(opcode);
 
+  if (digits.length === 1) {
+    return {
+      op: digits[0],
+      modes: [0, 0, 0]
+    };
+  }
+
   const opDigits = digits.slice(digits.length - 2);
   const op = opDigits[1] + opDigits[0] * 10;
 
@@ -57,7 +64,7 @@ const add: Instruction = (program, modes) => {
 
   const val1 = getValue(memory[pc + 1], modes[0], memory);
   const val2 = getValue(memory[pc + 2], modes[1], memory);
-  const out = getValue(memory[pc + 3], modes[2], memory);
+  const out = memory[pc + 3];
 
   memory[out] = val1 + val2;
   program.pc += 4;
@@ -68,7 +75,7 @@ const mul: Instruction = (program, modes) => {
 
   const val1 = getValue(memory[pc + 1], modes[0], memory);
   const val2 = getValue(memory[pc + 2], modes[1], memory);
-  const out = getValue(memory[pc + 3], modes[2], memory);
+  const out = memory[pc + 3];
 
   memory[out] = val1 * val2;
 
@@ -85,7 +92,7 @@ const input: Instruction = program => {
 };
 
 const output: Instruction = (program, modes) => {
-  const { memory, pc, output } = program;
+  const { memory, pc } = program;
 
   const val = getValue(memory[pc + 1], modes[0], memory);
 
@@ -93,6 +100,10 @@ const output: Instruction = (program, modes) => {
     pc: program.pc,
     value: val
   };
+
+  program.output.push(newOutput);
+
+  program.pc += 2;
 };
 
 const instructions: { [op: number]: Instruction } = {
@@ -117,7 +128,7 @@ const compute = (program: Program): Memory => {
   return compute(program);
 };
 
-export const execute = (memory: number[], input?: number): ProgramOutput => {
+export const execute = (memory: number[], input?: number): Result => {
   const program: Program = {
     pc: 0,
     memory,
