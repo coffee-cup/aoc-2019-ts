@@ -67,6 +67,7 @@ const add: Instruction = (program, modes) => {
   const out = memory[pc + 3];
 
   memory[out] = val1 + val2;
+
   program.pc += 4;
 };
 
@@ -84,6 +85,10 @@ const mul: Instruction = (program, modes) => {
 
 const input: Instruction = program => {
   const { memory, pc } = program;
+
+  if (program.input == null) {
+    throw new Error("Cannot input without value");
+  }
 
   const out = memory[pc + 1];
   memory[out] = program.input;
