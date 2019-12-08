@@ -13,7 +13,7 @@ interface Output {
   value: number;
 }
 
-interface Result {
+export interface Result {
   memory: Memory;
   output: Output[];
 }
@@ -21,11 +21,20 @@ interface Result {
 interface Program {
   pc: number;
   memory: Memory;
-  input?: number;
+  input: number[];
   output: Output[];
+  currentInput: number;
+  requestInput?: (index: number) => Promise<number>;
+  receiveOutput?: (value: number) => void;
 }
 
-type Instruction = (program: Program, modes: ParameterMode[]) => void;
+export interface ProgramOptions {
+  input?: number[];
+  requestInput?: (index: number) => Promise<number>;
+  receiveOutput?: (value: number) => void;
+}
+
+type Instruction = (program: Program, modes: ParameterMode[]) => Promise<void>;
 
 const getValue = (val: number, mode: ParameterMode, memory: Memory): number => {
   if (mode === ParameterMode.Position) {
@@ -59,7 +68,7 @@ export const readOpcode = (
   return { op, modes };
 };
 
-const add: Instruction = (program, modes) => {
+const add: Instruction = async (program, modes) => {
   const { memory, pc } = program;
 
   const val1 = getValue(memory[pc + 1], modes[0], memory);
@@ -71,7 +80,7 @@ const add: Instruction = (program, modes) => {
   program.pc += 4;
 };
 
-const mul: Instruction = (program, modes) => {
+const mul: Instruction = async (program, modes) => {
   const { memory, pc } = program;
 
   const val1 = getValue(memory[pc + 1], modes[0], memory);
@@ -83,20 +92,31 @@ const mul: Instruction = (program, modes) => {
   program.pc += 4;
 };
 
-const input: Instruction = program => {
+const input: Instruction = async program => {
   const { memory, pc } = program;
 
-  if (program.input == null) {
+  if (program.input.length === 0 && program.requestInput == null) {
     throw new Error("Cannot input without value");
   }
 
+  let val = 0;
+  if (program.input.length !== 0) {
+    val = program.input[0];
+    program.input = program.input.slice(1);
+  } else {
+    val = await program.requestInput(program.currentInput);
+  }
+
+  // console.log(`input ${program.currentInput}, ${val}`);
+
   const out = memory[pc + 1];
-  memory[out] = program.input;
+  memory[out] = val;
+  program.currentInput += 1;
 
   program.pc += 2;
 };
 
-const output: Instruction = (program, modes) => {
+const output: Instruction = async (program, modes) => {
   const { memory, pc } = program;
 
   const val = getValue(memory[pc + 1], modes[0], memory);
@@ -108,10 +128,14 @@ const output: Instruction = (program, modes) => {
 
   program.output.push(newOutput);
 
+  if (program.receiveOutput) {
+    program.receiveOutput(val);
+  }
+
   program.pc += 2;
 };
 
-const jumpIfTrue: Instruction = (program, modes) => {
+const jumpIfTrue: Instruction = async (program, modes) => {
   const { memory, pc } = program;
 
   const val = getValue(memory[pc + 1], modes[0], memory);
@@ -124,7 +148,7 @@ const jumpIfTrue: Instruction = (program, modes) => {
   }
 };
 
-const jumpIfFalse: Instruction = (program, modes) => {
+const jumpIfFalse: Instruction = async (program, modes) => {
   const { memory, pc } = program;
 
   const val = getValue(memory[pc + 1], modes[0], memory);
@@ -137,7 +161,7 @@ const jumpIfFalse: Instruction = (program, modes) => {
   }
 };
 
-const lessThan: Instruction = (program, modes) => {
+const lessThan: Instruction = async (program, modes) => {
   const { memory, pc } = program;
 
   const val1 = getValue(memory[pc + 1], modes[0], memory);
@@ -153,7 +177,7 @@ const lessThan: Instruction = (program, modes) => {
   program.pc += 4;
 };
 
-const equals: Instruction = (program, modes) => {
+const equals: Instruction = async (program, modes) => {
   const { memory, pc } = program;
 
   const val1 = getValue(memory[pc + 1], modes[0], memory);
@@ -180,33 +204,45 @@ const instructions: { [op: number]: Instruction } = {
   8: equals
 };
 
-const compute = (program: Program): Memory => {
+const compute = async (program: Program): Promise<Memory> => {
   const { memory, pc } = program;
   const { op, modes } = readOpcode(program.memory[pc]);
 
   if (op === 99) {
     return memory;
   } else if (instructions[op] != null) {
-    instructions[op](program, modes);
+    await instructions[op](program, modes);
   } else {
     throw new Error(`Opcode ${op} not recognized`);
   }
 
-  return compute(program);
+  return await compute(program);
 };
 
-export const execute = (memory: number[], input?: number): Result => {
+export const execute = async (
+  memory: number[],
+  options: ProgramOptions = {}
+): Promise<Result> => {
   const program: Program = {
     pc: 0,
     memory,
-    input,
+    currentInput: 0,
+    input: options.input ?? [],
+    requestInput: options.requestInput,
+    receiveOutput: options.receiveOutput,
     output: []
   };
 
-  compute(program);
+  await compute(program);
 
   return {
     memory: program.memory,
     output: program.output
   };
 };
+
+export const parseProgram = (input: string): number[] =>
+  input
+    .trim()
+    .split(",")
+    .map(n => parseInt(n, 10));

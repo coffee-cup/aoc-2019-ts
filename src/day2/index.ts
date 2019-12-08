@@ -6,16 +6,16 @@ const parseInput = (input: string): number[] =>
     .split(",")
     .map(n => parseInt(n, 10));
 
-export const solveP1 = (input: string): number => {
+export const solveP1 = async (input: string): Promise<number> => {
   const memory = parseInput(input);
 
   memory[1] = 12;
   memory[2] = 2;
 
-  return execute(memory).memory[0];
+  return (await execute(memory)).memory[0];
 };
 
-export const solveP2 = (input: string): number => {
+export const solveP2 = async (input: string): Promise<number> => {
   const goal = 19690720;
 
   let found: [number, number] | null = null;
@@ -30,7 +30,7 @@ export const solveP2 = (input: string): number => {
       opcodes[1] = noun;
       opcodes[2] = verb;
 
-      const res = execute(opcodes).memory;
+      const res = (await execute(opcodes)).memory;
 
       if (res[0] === goal) {
         found = [noun, verb];
