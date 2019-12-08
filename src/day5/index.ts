@@ -16,11 +16,11 @@ export const solve = async (
     input: [inputVal]
   });
 
-  result.output.forEach(({ value }, i) => {
+  result.output.forEach((value, i) => {
     if (i !== result.output.length - 1 && value !== 0) {
       throw new Error(`Output is not 0. It is ${value}`);
     }
   });
 
-  return result.output[result.output.length - 1].value;
+  return result.output[result.output.length - 1];
 };

@@ -8,21 +8,16 @@ enum ParameterMode {
 
 type Memory = number[];
 
-interface Output {
-  pc: number;
-  value: number;
-}
-
 export interface Result {
   memory: Memory;
-  output: Output[];
+  output: number[];
 }
 
 interface Program {
   pc: number;
   memory: Memory;
   input: number[];
-  output: Output[];
+  output: number[];
   currentInput: number;
   requestInput?: (index: number) => Promise<number>;
   receiveOutput?: (value: number) => void;
@@ -121,12 +116,7 @@ const output: Instruction = async (program, modes) => {
 
   const val = getValue(memory[pc + 1], modes[0], memory);
 
-  const newOutput: Output = {
-    pc: program.pc,
-    value: val
-  };
-
-  program.output.push(newOutput);
+  program.output.push(val);
 
   if (program.receiveOutput) {
     program.receiveOutput(val);

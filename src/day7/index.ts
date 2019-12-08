@@ -1,4 +1,4 @@
-import { execute, parseProgram, Result } from "../intcode";
+import { execute, parseProgram } from "../intcode";
 import { permute } from "../utils";
 
 const runWithSequenceP1 = async (
@@ -10,7 +10,7 @@ const runWithSequenceP1 = async (
   for (const phase of sequence) {
     const input = [phase, lastOutput];
     const result = await execute([...program], { input });
-    lastOutput = result.output[0].value;
+    lastOutput = result.output[0];
   }
 
   return lastOutput;
@@ -23,13 +23,11 @@ export const solveP1 = async (input: string): Promise<number> => {
   const phasePermutations = permute(possiblePhases);
 
   let max = 0;
-  let seq = possiblePhases;
 
   for (const sequence of phasePermutations) {
     const output = await runWithSequenceP1(program, sequence);
     if (output > max) {
       max = output;
-      seq = sequence;
     }
   }
 
@@ -93,7 +91,6 @@ const runWithSequenceP2 = async (
   const ampD = createAmp("D", sequence[3]);
   const ampE = createAmp("E", sequence[4]);
   const amps = [ampA, ampB, ampC, ampD, ampE];
-  // const amps = [ampA];
 
   connectAmps(ampA, ampB);
   connectAmps(ampB, ampC);
@@ -114,7 +111,7 @@ const runWithSequenceP2 = async (
   );
 
   const ampEOutput = results[results.length - 1].output;
-  const r = ampEOutput[ampEOutput.length - 1].value;
+  const r = ampEOutput[ampEOutput.length - 1];
 
   return r;
 };

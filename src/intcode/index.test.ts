@@ -8,7 +8,7 @@ const executeM = async (
 const getOutput = async (
   memory: number[],
   input: number[] = []
-): Promise<number> => (await execute(memory, { input })).output[0].value;
+): Promise<number> => (await execute(memory, { input })).output[0];
 
 describe("intcode", () => {
   it("reads an opcode and modes", () => {
