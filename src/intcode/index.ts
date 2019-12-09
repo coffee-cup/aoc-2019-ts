@@ -3,7 +3,8 @@ import { splitIntoDigits } from "../utils";
 
 enum ParameterMode {
   Position = 0,
-  Immediate
+  Immediate,
+  Relative
 }
 
 type Memory = number[];
@@ -18,6 +19,7 @@ interface Program {
   memory: Memory;
   input: number[];
   output: number[];
+  relativeBase: number;
   currentInput: number;
   requestInput?: (index: number) => Promise<number>;
   receiveOutput?: (value: number) => void;
@@ -31,11 +33,30 @@ export interface ProgramOptions {
 
 type Instruction = (program: Program, modes: ParameterMode[]) => Promise<void>;
 
-const getValue = (val: number, mode: ParameterMode, memory: Memory): number => {
+const getValue = (
+  val: number,
+  mode: ParameterMode,
+  { memory, relativeBase }: Program
+): number => {
   if (mode === ParameterMode.Position) {
     return memory[val];
   } else if (mode === ParameterMode.Immediate) {
     return val;
+  } else if (mode === ParameterMode.Relative) {
+    return memory[relativeBase + val];
+  }
+};
+
+const writeValue = (
+  pos: number,
+  val: number,
+  mode: ParameterMode,
+  { memory, relativeBase }: Program
+) => {
+  if (mode === ParameterMode.Position) {
+    memory[pos] = val;
+  } else if (mode === ParameterMode.Relative) {
+    memory[relativeBase + pos] = val;
   }
 };
 
@@ -66,11 +87,10 @@ export const readOpcode = (
 const add: Instruction = async (program, modes) => {
   const { memory, pc } = program;
 
-  const val1 = getValue(memory[pc + 1], modes[0], memory);
-  const val2 = getValue(memory[pc + 2], modes[1], memory);
-  const out = memory[pc + 3];
+  const val1 = getValue(memory[pc + 1], modes[0], program);
+  const val2 = getValue(memory[pc + 2], modes[1], program);
 
-  memory[out] = val1 + val2;
+  writeValue(memory[pc + 3], val1 + val2, modes[2], program);
 
   program.pc += 4;
 };
@@ -78,16 +98,14 @@ const add: Instruction = async (program, modes) => {
 const mul: Instruction = async (program, modes) => {
   const { memory, pc } = program;
 
-  const val1 = getValue(memory[pc + 1], modes[0], memory);
-  const val2 = getValue(memory[pc + 2], modes[1], memory);
-  const out = memory[pc + 3];
-
-  memory[out] = val1 * val2;
+  const val1 = getValue(memory[pc + 1], modes[0], program);
+  const val2 = getValue(memory[pc + 2], modes[1], program);
+  writeValue(memory[pc + 3], val1 * val2, modes[2], program);
 
   program.pc += 4;
 };
 
-const input: Instruction = async program => {
+const input: Instruction = async (program, modes) => {
   const { memory, pc } = program;
 
   if (program.input.length === 0 && program.requestInput == null) {
@@ -102,10 +120,7 @@ const input: Instruction = async program => {
     val = await program.requestInput(program.currentInput);
   }
 
-  // console.log(`input ${program.currentInput}, ${val}`);
-
-  const out = memory[pc + 1];
-  memory[out] = val;
+  writeValue(memory[pc + 1], val, modes[0], program);
   program.currentInput += 1;
 
   program.pc += 2;
@@ -114,7 +129,7 @@ const input: Instruction = async program => {
 const output: Instruction = async (program, modes) => {
   const { memory, pc } = program;
 
-  const val = getValue(memory[pc + 1], modes[0], memory);
+  const val = getValue(memory[pc + 1], modes[0], program);
 
   program.output.push(val);
 
@@ -128,8 +143,8 @@ const output: Instruction = async (program, modes) => {
 const jumpIfTrue: Instruction = async (program, modes) => {
   const { memory, pc } = program;
 
-  const val = getValue(memory[pc + 1], modes[0], memory);
-  const setTo = getValue(memory[pc + 2], modes[1], memory);
+  const val = getValue(memory[pc + 1], modes[0], program);
+  const setTo = getValue(memory[pc + 2], modes[1], program);
 
   if (val !== 0) {
     program.pc = setTo;
@@ -141,8 +156,8 @@ const jumpIfTrue: Instruction = async (program, modes) => {
 const jumpIfFalse: Instruction = async (program, modes) => {
   const { memory, pc } = program;
 
-  const val = getValue(memory[pc + 1], modes[0], memory);
-  const setTo = getValue(memory[pc + 2], modes[1], memory);
+  const val = getValue(memory[pc + 1], modes[0], program);
+  const setTo = getValue(memory[pc + 2], modes[1], program);
 
   if (val === 0) {
     program.pc = setTo;
@@ -154,14 +169,13 @@ const jumpIfFalse: Instruction = async (program, modes) => {
 const lessThan: Instruction = async (program, modes) => {
   const { memory, pc } = program;
 
-  const val1 = getValue(memory[pc + 1], modes[0], memory);
-  const val2 = getValue(memory[pc + 2], modes[1], memory);
-  const out = memory[pc + 3];
+  const val1 = getValue(memory[pc + 1], modes[0], program);
+  const val2 = getValue(memory[pc + 2], modes[1], program);
 
   if (val1 < val2) {
-    memory[out] = 1;
+    writeValue(memory[pc + 3], 1, modes[2], program);
   } else {
-    memory[out] = 0;
+    writeValue(memory[pc + 3], 0, modes[2], program);
   }
 
   program.pc += 4;
@@ -170,17 +184,25 @@ const lessThan: Instruction = async (program, modes) => {
 const equals: Instruction = async (program, modes) => {
   const { memory, pc } = program;
 
-  const val1 = getValue(memory[pc + 1], modes[0], memory);
-  const val2 = getValue(memory[pc + 2], modes[1], memory);
-  const out = memory[pc + 3];
+  const val1 = getValue(memory[pc + 1], modes[0], program);
+  const val2 = getValue(memory[pc + 2], modes[1], program);
 
   if (val1 === val2) {
-    memory[out] = 1;
+    writeValue(memory[pc + 3], 1, modes[2], program);
   } else {
-    memory[out] = 0;
+    writeValue(memory[pc + 3], 0, modes[2], program);
   }
 
   program.pc += 4;
+};
+
+const adjustRelativeBase: Instruction = async program => {
+  const { memory, pc } = program;
+
+  const adjustment = memory[pc + 1];
+  program.relativeBase += adjustment;
+
+  program.pc += 2;
 };
 
 const instructions: { [op: number]: Instruction } = {
@@ -191,7 +213,8 @@ const instructions: { [op: number]: Instruction } = {
   5: jumpIfTrue,
   6: jumpIfFalse,
   7: lessThan,
-  8: equals
+  8: equals,
+  9: adjustRelativeBase
 };
 
 const compute = async (program: Program): Promise<Memory> => {
@@ -206,6 +229,8 @@ const compute = async (program: Program): Promise<Memory> => {
     throw new Error(`Opcode ${op} not recognized`);
   }
 
+  // await new Promise(r => setTimeout(r, 500));
+
   return await compute(program);
 };
 
@@ -215,9 +240,10 @@ export const execute = async (
 ): Promise<Result> => {
   const program: Program = {
     pc: 0,
-    memory,
+    memory: [...memory, ...new Array(10000).fill(0)] as number[],
     currentInput: 0,
     input: options.input ?? [],
+    relativeBase: 0,
     requestInput: options.requestInput,
     receiveOutput: options.receiveOutput,
     output: []

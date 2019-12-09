@@ -3,12 +3,18 @@ import { readOpcode, execute } from ".";
 const executeM = async (
   memory: number[],
   input: number[] = []
-): Promise<number[]> => (await execute(memory, { input })).memory;
+): Promise<number[]> =>
+  (await execute(memory, { input })).memory.slice(0, memory.length);
 
 const getOutput = async (
   memory: number[],
   input: number[] = []
 ): Promise<number> => (await execute(memory, { input })).output[0];
+
+const getOutputs = async (
+  memory: number[],
+  input: number[] = []
+): Promise<number[]> => (await execute(memory, { input })).output;
 
 describe("intcode", () => {
   it("reads an opcode and modes", () => {
@@ -104,5 +110,26 @@ describe("intcode", () => {
         [10]
       )
     ).toBe(1001);
+
+    // samples from day 9
+    expect(
+      (
+        await getOutput(JSON.parse("[1102,34915192,34915192,7,4,7,99,0]"))
+      ).toString().length
+    ).toBe(16);
+
+    expect(await getOutput(JSON.parse("[104,1125899906842624,99]"))).toBe(
+      1125899906842624
+    );
+
+    expect(
+      await getOutputs(
+        JSON.parse(
+          "[109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99]"
+        )
+      )
+    ).toEqual(
+      JSON.parse("[109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99]")
+    );
   });
 });
