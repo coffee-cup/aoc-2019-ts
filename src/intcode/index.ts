@@ -44,6 +44,8 @@ const getValue = (
     return val;
   } else if (mode === ParameterMode.Relative) {
     return memory[relativeBase + val];
+  } else {
+    throw new Error(`Unknown input mode: ${mode}`);
   }
 };
 
@@ -57,6 +59,8 @@ const writeValue = (
     memory[pos] = val;
   } else if (mode === ParameterMode.Relative) {
     memory[relativeBase + pos] = val;
+  } else {
+    throw new Error(`Unknown output mode: ${mode}`);
   }
 };
 
@@ -196,10 +200,10 @@ const equals: Instruction = async (program, modes) => {
   program.pc += 4;
 };
 
-const adjustRelativeBase: Instruction = async program => {
+const adjustRelativeBase: Instruction = async (program, modes) => {
   const { memory, pc } = program;
 
-  const adjustment = memory[pc + 1];
+  const adjustment = getValue(memory[pc + 1], modes[0], program);
   program.relativeBase += adjustment;
 
   program.pc += 2;
@@ -217,9 +221,28 @@ const instructions: { [op: number]: Instruction } = {
   9: adjustRelativeBase
 };
 
+const instructionNames = {
+  1: "ADD",
+  2: "MUL",
+  3: "INPUT",
+  4: "OUTPUT",
+  5: "JUMP IF TRUE",
+  6: "JUMP IF FALSE",
+  7: "LESS THAN",
+  8: "EQUALS",
+  9: "ADJUST BASE"
+};
+
 const compute = async (program: Program): Promise<Memory> => {
   const { memory, pc } = program;
   const { op, modes } = readOpcode(program.memory[pc]);
+
+  // console.log({
+  //   pc,
+  //   op: instructionNames[op],
+  //   modes,
+  //   ra: program.relativeBase
+  // });
 
   if (op === 99) {
     return memory;
@@ -240,7 +263,7 @@ export const execute = async (
 ): Promise<Result> => {
   const program: Program = {
     pc: 0,
-    memory: [...memory, ...new Array(10000).fill(0)] as number[],
+    memory: [...memory, ...new Array(10000).fill(0)],
     currentInput: 0,
     input: options.input ?? [],
     relativeBase: 0,
