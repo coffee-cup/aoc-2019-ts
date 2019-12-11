@@ -7,7 +7,7 @@ enum ParameterMode {
   Relative
 }
 
-type Memory = number[];
+export type Memory = number[];
 
 export interface Result {
   memory: Memory;
