@@ -20,7 +20,7 @@ interface Program {
   input: number[];
   output: number[];
   relativeBase: number;
-  currentInput: number;
+  currentInputIndex: number;
   requestInput?: (index: number) => Promise<number>;
   receiveOutput?: (value: number) => void;
 }
@@ -121,11 +121,11 @@ const input: Instruction = async (program, modes) => {
     val = program.input[0];
     program.input = program.input.slice(1);
   } else {
-    val = await program.requestInput(program.currentInput);
+    val = await program.requestInput(program.currentInputIndex);
   }
 
   writeValue(memory[pc + 1], val, modes[0], program);
-  program.currentInput += 1;
+  program.currentInputIndex += 1;
 
   program.pc += 2;
 };
@@ -264,7 +264,7 @@ export const execute = async (
   const program: Program = {
     pc: 0,
     memory: [...memory, ...new Array(10000).fill(0)],
-    currentInput: 0,
+    currentInputIndex: 0,
     input: options.input ?? [],
     relativeBase: 0,
     requestInput: options.requestInput,
