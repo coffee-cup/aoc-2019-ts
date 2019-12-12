@@ -39,3 +39,27 @@ export const permute = <T>(permutation: T[]): T[][] => {
 
   return result;
 };
+
+const gcd2 = (a: number, b: number): number => {
+  if (b === 0) {
+    return a;
+  }
+
+  return gcd2(b, a % b);
+};
+
+export const gcd = (arr: number[]): number => {
+  let factors = arr[0];
+
+  for (let i = 1; i < arr.length; i += 1) {
+    factors = gcd2(factors, arr[1]);
+  }
+
+  return factors;
+};
+
+export const lcm = (arr: number[]): number => {
+  return arr.reduce((acc, n) => {
+    return (acc * n) / gcd([acc, n]);
+  }, 1);
+};
