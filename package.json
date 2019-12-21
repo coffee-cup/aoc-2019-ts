@@ -7,10 +7,12 @@
     "test": "jest"
   },
   "dependencies": {
+    "clear": "^0.1.0",
     "lodash": "^4.17.15",
     "ts-node": "^8.5.4"
   },
   "devDependencies": {
+    "@types/clear": "^0.1.0",
     "@types/jest": "^24.0.23",
     "@types/lodash": "^4.14.149",
     "@types/node": "^12.12.14",

@@ -21,13 +21,14 @@ interface Program {
   output: number[];
   relativeBase: number;
   currentInputIndex: number;
-  requestInput?: (index: number) => Promise<number>;
+  requestInput?: (index: number) => Promise<number | null>;
   receiveOutput?: (value: number) => void;
+  shouldQuit: boolean;
 }
 
 export interface ProgramOptions {
   input?: number[];
-  requestInput?: (index: number) => Promise<number>;
+  requestInput?: (index: number) => Promise<number | null>;
   receiveOutput?: (value: number) => void;
 }
 
@@ -122,6 +123,10 @@ const input: Instruction = async (program, modes) => {
     program.input = program.input.slice(1);
   } else {
     val = await program.requestInput(program.currentInputIndex);
+
+    if (val == null) {
+      program.shouldQuit = true;
+    }
   }
 
   writeValue(memory[pc + 1], val, modes[0], program);
@@ -244,7 +249,7 @@ const compute = async (program: Program): Promise<Memory> => {
   //   ra: program.relativeBase
   // });
 
-  if (op === 99) {
+  if (op === 99 || program.shouldQuit) {
     return memory;
   } else if (instructions[op] != null) {
     await instructions[op](program, modes);
@@ -269,7 +274,8 @@ export const execute = async (
     relativeBase: 0,
     requestInput: options.requestInput,
     receiveOutput: options.receiveOutput,
-    output: []
+    output: [],
+    shouldQuit: false
   };
 
   await compute(program);
