@@ -268,5 +268,3 @@ export const solveP2 = async (input: string) => {
   const minutes = await fillWithOxygen(map);
   return minutes;
 };
-
-solveP2(input);
