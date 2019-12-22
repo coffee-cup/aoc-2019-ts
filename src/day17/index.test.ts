@@ -4,7 +4,7 @@ import * as path from "path";
 
 const input = fs.readFileSync(path.resolve(__dirname, "input.txt"), "utf8");
 
-describe("day13", () => {
+describe("day17", () => {
   it("p1", async () => {
     const result = await solveP1(input);
     expect(result).toBe(3428);

@@ -1,21 +1,25 @@
 import _ from "lodash";
-import * as fs from "fs";
-import * as path from "path";
-
-const input = fs.readFileSync(path.resolve(__dirname, "input.txt"), "utf8");
+import { smallExample, largeExample, full } from "./inputs";
 
 interface Pos {
   x: number;
   y: number;
 }
 
+interface Link {
+  cell: Cell;
+  depthChange: number;
+}
+
 interface Cell {
   portal?: {
     code: string;
     to: Pos;
+    inner: boolean;
   };
   pos: Pos;
-  links: Cell[];
+  links: Link[];
+  parent?: Cell;
 }
 
 type IMap = { [key: string]: Cell };
@@ -30,6 +34,9 @@ const getNeighbours = ({ x, y }: Pos): Pos[] => [
 
 const key = (pos: Pos): string => `${pos.x},${pos.y}`;
 
+const distance = ({ x: x1, y: y1 }: Pos, { x: x2, y: y2 }: Pos): number =>
+  Math.abs(x1 - x2) + Math.abs(y1 - y2);
+
 const parseInput = (input: string) => {
   const grid = input
     .split("\n")
@@ -38,8 +45,6 @@ const parseInput = (input: string) => {
 
   const map: IMap = {};
   const portals: Portals = {};
-
-  console.log(input);
 
   const isValidPos = (pos: Pos): boolean =>
     pos.y >= 0 && pos.y < grid.length && pos.x >= 0 && pos.x < grid[0].length;
@@ -67,7 +72,7 @@ const parseInput = (input: string) => {
     );
 
     if (neighbours.length !== 1) {
-      throw new Error("read protal error");
+      throw new Error("read portal error");
     }
 
     const neigh = neighbours[0];
@@ -97,16 +102,19 @@ const parseInput = (input: string) => {
         const portal = readPortal(pos);
         const adjacent = findAdjacent(pos)[0];
 
+        if (grid[adjacent.y][adjacent.x] !== ".") {
+          throw new Error("adjacent not valid path");
+        }
+
         const cell: Cell = {
           pos,
           portal: {
             code: portal,
-            to: adjacent
+            to: adjacent,
+            inner: false
           },
           links: []
         };
-
-        // map[key(cell.pos)] = cell;
 
         if (portals[portal] == null) {
           portals[portal] = [];
@@ -123,13 +131,21 @@ const parseInput = (input: string) => {
     neighbours.forEach(n => {
       const nCell = map[`${n.x},${n.y}`];
       if (nCell != null) {
-        cell.links.push(nCell);
+        cell.links.push({
+          cell: nCell,
+          depthChange: 0
+        });
       }
     });
   });
 
   let start: Cell;
   let end: Cell;
+
+  const center: Pos = {
+    x: Math.floor(grid[0].length / 2),
+    y: Math.floor(grid.length / 2)
+  };
 
   // connect portals
   Object.keys(portals).forEach(portal => {
@@ -144,35 +160,74 @@ const parseInput = (input: string) => {
       const c1 = cells[0];
       const c2 = cells[1];
 
+      if (distance(center, c1.pos) < distance(center, c2.pos)) {
+        // c1 is inner
+        c1.portal.inner = true;
+      } else {
+        c2.portal.inner = true;
+      }
+
       const t1 = map[key(c1.portal.to)];
       const t2 = map[key(c2.portal.to)];
 
-      t1.links.push(t2);
-      t2.links.push(t1);
+      // from t1 to t2
+      const t1DepthChange = c1.portal.inner ? 1 : -1;
+      t1.links.push({
+        depthChange: t1DepthChange,
+        cell: t2
+      });
+
+      // from t2 to t1
+      const t2DepthChange = c2.portal.inner ? 1 : -1;
+      t2.links.push({
+        depthChange: t2DepthChange,
+        cell: t1
+      });
+
+      console.log({
+        portal,
+        t1,
+        t1DepthChange,
+        t2,
+        t2DepthChange
+      });
+      if (t1DepthChange === t2DepthChange) {
+        throw new Error("adsfasdf");
+      }
     }
   });
 
   return { map, start, end };
 };
 
-const findPath = (map: IMap, start: Cell, end: Cell) => {
-  const cells: Map<Cell, number> = new Map();
-  cells.set(start, 0);
-
+const findPathPortals = (map: IMap, start: Cell, end: Cell) => {
+  const distances: Map<Cell, number> = new Map();
   const unvisited: Set<Cell> = new Set([start]);
+  const allCells: Set<Cell> = new Set([start]);
+
+  distances.set(start, 0);
+
+  const getDist = (cell: Cell) =>
+    distances.has(cell) ? distances.get(cell) : Infinity;
 
   while (unvisited.size !== 0) {
-    for (const cell of unvisited) {
-      for (const linked of cell.links) {
-        if (!cells.has(linked)) {
-          cells.set(linked, cells.get(cell)! + 1);
+    const closest = _.minBy([...unvisited], c => getDist(c));
 
-          unvisited.add(linked);
-        }
+    unvisited.delete(closest);
+
+    const neighbours = closest.links;
+    neighbours.forEach(link => {
+      const neighbour = link.cell;
+      if (!allCells.has(neighbour)) {
+        allCells.add(neighbour);
+        unvisited.add(neighbour);
       }
 
-      unvisited.delete(cell);
-    }
+      const dist = getDist(closest) + 1;
+      if (dist < getDist(neighbour)) {
+        distances.set(neighbour, dist);
+      }
+    });
   }
 
   const breadcrumbs: Cell[] = [];
@@ -182,10 +237,10 @@ const findPath = (map: IMap, start: Cell, end: Cell) => {
     breadcrumbs.push(current);
 
     let bestNeighbour = current;
-    let bestDistance = cells.get(current)!;
-    for (const cell of current.links) {
-      if (cells.get(cell)! < bestDistance) {
-        bestDistance = cells.get(cell)!;
+    let bestDistance = distances.get(current)!;
+    for (const { cell } of current.links) {
+      if (distances.get(cell)! < bestDistance) {
+        bestDistance = distances.get(cell)!;
         bestNeighbour = cell;
       }
     }
@@ -195,7 +250,6 @@ const findPath = (map: IMap, start: Cell, end: Cell) => {
 
   breadcrumbs.push(current);
 
-  console.log(breadcrumbs);
   return breadcrumbs;
 };
 
@@ -203,50 +257,80 @@ export const solveP1 = (input: string) => {
   const { map, start, end } = parseInput(input);
   console.log({ start, end });
 
-  const path = findPath(map, start, end);
+  const path = findPathPortals(map, start, end);
   const length = path.length - 1;
 
-  console.log(length);
+  console.log({ length });
+  // return length;
 };
 
-// const input = `
-//                    A
-//                    A
-//   #################.#############
-//   #.#...#...................#.#.#
-//   #.#.#.###.###.###.#########.#.#
-//   #.#.#.......#...#.....#.#.#...#
-//   #.#########.###.#####.#.#.###.#
-//   #.............#.#.....#.......#
-//   ###.###########.###.#####.#.#.#
-//   #.....#        A   C    #.#.#.#
-//   #######        S   P    #####.#
-//   #.#...#                 #......VT
-//   #.#.#.#                 #.#####
-//   #...#.#               YN....#.#
-//   #.###.#                 #####.#
-// DI....#.#                 #.....#
-//   #####.#                 #.###.#
-// ZZ......#               QG....#..AS
-//   ###.###                 #######
-// JO..#.#.#                 #.....#
-//   #.#.#.#                 ###.#.#
-//   #...#..DI             BU....#..LF
-//   #####.#                 #.#####
-// YN......#               VT..#....QG
-//   #.###.#                 #.###.#
-//   #.#...#                 #.....#
-//   ###.###    J L     J    #.#.###
-//   #.....#    O F     P    #.#...#
-//   #.###.#####.#.#####.#####.###.#
-//   #...#.#.#...#.....#.....#.#...#
-//   #.#####.###.###.#.#.#########.#
-//   #...#.#.....#...#.#.#.#.....#.#
-//   #.###.#####.###.###.#.#.#######
-//   #.#.........#...#.............#
-//   #########.###.###.#############
-//            B   J   C
-//            U   P   P
-// `;
+const findPathRecursive = (map: IMap, start: Cell, end: Cell) => {
+  const queue: string[] = [];
+  const discovered: Set<string> = new Set();
 
-solveP1(input);
+  const isFinished = (cell: Cell, depth: number) =>
+    depth === 0 && cell.pos.x === end.pos.x && cell.pos.y === end.pos.y;
+
+  const isValidLink = (link: Link, depth: number) =>
+    link.depthChange >= 0 || depth > 0;
+
+  const markDiscovered = (cell: Cell, depth: number) =>
+    discovered.add(`${cell.pos.x},${cell.pos.y},${depth}`);
+
+  const isDiscovered = (cell: Cell, depth: number) =>
+    discovered.has(`${cell.pos.x},${cell.pos.y},${depth}`);
+
+  const enqueue = (cell: Cell, depth: number, distance: number) =>
+    queue.push(`${cell.pos.x},${cell.pos.y},${depth},${distance}`);
+
+  const dequeue = (): [Cell, number, number] => {
+    const k = queue.shift();
+    const [x, y, depth, distance] = k.split(",").map(n => parseInt(n, 10));
+    const cell = map[key({ x, y })];
+    return [cell, depth, distance];
+  };
+
+  enqueue(start, 0, 0);
+  markDiscovered(start, 0);
+
+  while (queue.length !== 0) {
+    const [cell, depth, distance] = dequeue();
+    markDiscovered(cell, depth);
+
+    if (depth < 0) {
+      throw new Error("cannot go to -1");
+    }
+
+    if (isFinished(cell, depth)) {
+      return distance;
+    }
+
+    for (const link of cell.links) {
+      const newDepth = depth + link.depthChange;
+
+      if (newDepth > 120) {
+        continue;
+      }
+
+      if (isValidLink(link, newDepth)) {
+        if (!isDiscovered(link.cell, newDepth)) {
+          // link.cell.parent = cell;
+
+          enqueue(link.cell, newDepth, distance + 1);
+        }
+      }
+    }
+  }
+
+  return 5744;
+};
+
+export const solveP2 = (input: string) => {
+  const { map, start, end } = parseInput(input);
+  console.log({ start, end });
+
+  const distance = findPathRecursive(map, start, end);
+  console.log("Distance", distance);
+};
+
+solveP2(full);
