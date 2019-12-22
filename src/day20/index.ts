@@ -1,5 +1,5 @@
 import _ from "lodash";
-import { smallExample, largeExample, full } from "./inputs";
+import { testExample, smallExample, largeExample, full } from "./inputs";
 
 interface Pos {
   x: number;
@@ -184,15 +184,8 @@ const parseInput = (input: string) => {
         cell: t1
       });
 
-      console.log({
-        portal,
-        t1,
-        t1DepthChange,
-        t2,
-        t2DepthChange
-      });
       if (t1DepthChange === t2DepthChange) {
-        throw new Error("adsfasdf");
+        throw new Error("Depth changes for portals cannot be the same");
       }
     }
   });
@@ -255,13 +248,11 @@ const findPathPortals = (map: IMap, start: Cell, end: Cell) => {
 
 export const solveP1 = (input: string) => {
   const { map, start, end } = parseInput(input);
-  console.log({ start, end });
 
   const path = findPathPortals(map, start, end);
   const length = path.length - 1;
 
-  console.log({ length });
-  // return length;
+  return length;
 };
 
 const findPathRecursive = (map: IMap, start: Cell, end: Cell) => {
@@ -272,7 +263,7 @@ const findPathRecursive = (map: IMap, start: Cell, end: Cell) => {
     depth === 0 && cell.pos.x === end.pos.x && cell.pos.y === end.pos.y;
 
   const isValidLink = (link: Link, depth: number) =>
-    link.depthChange >= 0 || depth > 0;
+    link.depthChange >= 0 || depth >= 0;
 
   const markDiscovered = (cell: Cell, depth: number) =>
     discovered.add(`${cell.pos.x},${cell.pos.y},${depth}`);
@@ -295,6 +286,7 @@ const findPathRecursive = (map: IMap, start: Cell, end: Cell) => {
 
   while (queue.length !== 0) {
     const [cell, depth, distance] = dequeue();
+
     markDiscovered(cell, depth);
 
     if (depth < 0) {
@@ -308,7 +300,7 @@ const findPathRecursive = (map: IMap, start: Cell, end: Cell) => {
     for (const link of cell.links) {
       const newDepth = depth + link.depthChange;
 
-      if (newDepth > 120) {
+      if (newDepth > 200) {
         continue;
       }
 
@@ -322,15 +314,15 @@ const findPathRecursive = (map: IMap, start: Cell, end: Cell) => {
     }
   }
 
-  return 5744;
+  throw new Error("path not found");
 };
 
 export const solveP2 = (input: string) => {
   const { map, start, end } = parseInput(input);
-  console.log({ start, end });
 
   const distance = findPathRecursive(map, start, end);
-  console.log("Distance", distance);
+
+  return distance;
 };
 
-solveP2(full);
+// solveP2(full);
