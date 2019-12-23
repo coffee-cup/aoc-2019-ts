@@ -2,7 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import _ from "lodash";
 import { parseProgram, execute, Memory } from "../intcode";
-import clear from "clear";
+import heapdump from "heapdump";
 
 const input = fs.readFileSync(path.resolve(__dirname, "input.txt"), "utf8");
 
