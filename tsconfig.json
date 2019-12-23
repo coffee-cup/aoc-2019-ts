@@ -2,7 +2,7 @@
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "lib",
-    "target": "es6",
+    "target": "es5",
     "lib": ["esnext", "dom"],
     "moduleResolution": "node",
     "sourceMap": true,
@@ -13,7 +13,8 @@
     "noImplicitReturns": false,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "downlevelIteration": true
   },
   "include": ["src", "typings"]
 }

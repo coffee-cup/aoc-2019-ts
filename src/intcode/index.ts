@@ -140,10 +140,10 @@ const output: Instruction = async (program, modes) => {
 
   const val = getValue(memory[pc + 1], modes[0], program);
 
-  program.output.push(val);
-
   if (program.receiveOutput) {
     program.receiveOutput(val);
+  } else {
+    program.output.push(val);
   }
 
   program.pc += 2;
