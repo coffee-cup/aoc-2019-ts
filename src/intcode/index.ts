@@ -142,10 +142,9 @@ const output: Instruction = async (program, modes) => {
 
   if (program.receiveOutput) {
     program.receiveOutput(val);
-  } else {
-    program.output.push(val);
   }
 
+  program.output.push(val);
   program.pc += 2;
 };
 
