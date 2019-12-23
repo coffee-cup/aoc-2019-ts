@@ -239,9 +239,18 @@ const instructionNames = {
 };
 
 const compute = async (program: Program): Promise<Memory> => {
-  const { memory, pc } = program;
-  const { op, modes } = readOpcode(program.memory[pc]);
+  while (true) {
+    const { memory, pc } = program;
+    const { op, modes } = readOpcode(program.memory[pc]);
 
+    if (op === 99 || program.shouldQuit) {
+      return memory;
+    } else if (instructions[op] != null) {
+      await instructions[op](program, modes);
+    } else {
+      throw new Error(`Opcode ${op} not recognized`);
+    }
+  }
   // console.log({
   //   pc,
   //   op: instructionNames[op],
@@ -249,17 +258,9 @@ const compute = async (program: Program): Promise<Memory> => {
   //   ra: program.relativeBase
   // });
 
-  if (op === 99 || program.shouldQuit) {
-    return memory;
-  } else if (instructions[op] != null) {
-    await instructions[op](program, modes);
-  } else {
-    throw new Error(`Opcode ${op} not recognized`);
-  }
-
   // await new Promise(r => setTimeout(r, 500));
 
-  return await compute(program);
+  // return await compute(program);
 };
 
 export const execute = async (
