@@ -10,7 +10,7 @@
   "dependencies": {
     "clear": "^0.1.0",
     "heapdump": "^0.3.15",
-    "lodash": "^4.17.15",
+    "lodash": "^4.17.21",
     "ts-node": "^8.5.4"
   },
   "devDependencies": {
